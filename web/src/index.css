@@ -1,0 +1,94 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --primary: #7eb8da;
+  --primary-dark: #5a9bc4;
+  --bg: #faf8f5;
+  --bg-card: #ffffff;
+  --text: #2c3e50;
+  --text-secondary: #7f8c8d;
+  --calm: #52c41a;
+  --sleepy: #1890ff;
+  --excited: #ff4d4f;
+  --irritable: #fa8c16;
+  --tense: #eb2f96;
+  --radius: 16px;
+  --shadow: 0 4px 20px rgba(126, 184, 218, 0.15);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root { min-height: 100vh; }
+
+.breathing-logo {
+  animation: breathe 3s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.7; transform: scale(1); filter: drop-shadow(0 0 8px rgba(126,184,218,0.4)); }
+  50% { opacity: 1; transform: scale(1.05); filter: drop-shadow(0 0 20px rgba(126,184,218,0.8)); }
+}
+
+.emotion-gauge {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  transition: all 0.5s ease;
+  box-shadow: var(--shadow);
+}
+
+.page-container {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #e8f4fc 0%, #faf8f5 30%);
+}
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(126,184,218,0.2);
+  z-index: 100;
+  padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+}
+
+.content-with-nav { padding-bottom: 80px; }
+
+.card-soft {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(126,184,218,0.1);
+}
+
+.splash-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #e8f4fc, #fce4ec, #faf8f5);
+}
+
+.admin-layout .ant-layout-sider { background: #1a2332 !important; }
+
+@media (min-width: 768px) {
+  .page-container { max-width: 100%; }
+  .bottom-nav { max-width: 480px; }
+}

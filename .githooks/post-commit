@@ -1,0 +1,7 @@
+#!/bin/bash
+# Git commit 后自动推送到 GitHub
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+[ -z "$REPO_ROOT" ] && exit 0
+[ -f "$REPO_ROOT/.git/disable-auto-push" ] && exit 0
+"$REPO_ROOT/scripts/git-push.sh" "chore: auto push $(date +%Y-%m-%d\ %H:%M)" --quiet 2>/dev/null &
+exit 0

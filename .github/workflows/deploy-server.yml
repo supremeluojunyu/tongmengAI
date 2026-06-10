@@ -1,0 +1,50 @@
+name: Deploy Server
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'server/**'
+      - 'web/src/**'
+      - 'web/package.json'
+      - 'scripts/deploy.sh'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18'
+  SERVER_PORT: '9050'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.DEPLOY_HOST != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            web/package-lock.json
+            server/package-lock.json
+
+      - name: Build Web
+        run: cd web && npm ci && npm run build
+
+      - name: Deploy via SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT || '9050' }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          export DEPLOY_SSH_KEY=~/.ssh/deploy_key
+          export SKIP_APK=1
+          chmod +x scripts/deploy.sh
+          ./scripts/deploy.sh

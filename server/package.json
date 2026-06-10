@@ -1,0 +1,19 @@
+{
+  "name": "tongmeng-ai-server",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "/usr/bin/node --watch src/index.js",
+    "start": "/usr/bin/node src/index.js",
+    "seed": "/usr/bin/node src/db/seed.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.7.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "uuid": "^11.0.3",
+    "ws": "^8.18.0"
+  }
+}

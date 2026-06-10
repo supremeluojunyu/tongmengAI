@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+web/dist/
+web/android/app/build/
+web/android/.gradle/
+web/android/build/
+web/android/capacitor-cordova-android-plugins/build/
+*.tsbuildinfo
+
+# APK (CI 构建产物通过 Release/部署推送，不提交大文件)
+server/downloads/*.apk
+tongmeng-ai-debug.apk
+*.apk
+
+# Database
+server/data/
+
+# Android SDK / Gradle (local only)
+local.properties
+android-sdk/
+.gradle/
+
+# Environment & secrets
+.env
+deploy.config.env
+*.pem
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*

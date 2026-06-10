@@ -1,0 +1,14 @@
+{
+  "name": "tongmeng-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "童梦AI - 儿童无感监测智能助眠安抚系统",
+  "scripts": {
+    "install:all": "cd server && npm install && cd ../web && npm install",
+    "dev:server": "cd server && npm run dev",
+    "dev:web": "cd web && npm run dev",
+    "build": "cd web && npm run build",
+    "start": "cd server && npm start",
+    "seed": "cd server && npm run seed"
+  }
+}

@@ -1,0 +1,2 @@
+# APK 文件放置目录
+# 构建后运行 ./build-apk.sh 会自动复制 tongmeng-ai.apk 到此目录

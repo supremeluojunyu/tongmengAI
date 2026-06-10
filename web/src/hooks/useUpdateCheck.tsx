@@ -1,0 +1,29 @@
+import { useEffect } from 'react';
+import { notification, Button } from 'antd';
+
+const LOCAL_BUILD_KEY = 'tm_app_build';
+
+/** APP/Web 启动时检查服务端是否有新版本 APK */
+export function useUpdateCheck() {
+  useEffect(() => {
+    const localBuild = localStorage.getItem(LOCAL_BUILD_KEY) || '';
+    fetch('/api/update/check?build=' + encodeURIComponent(localBuild))
+      .then(r => r.json())
+      .then(data => {
+        if (data.hasUpdate && data.available) {
+          notification.info({
+            message: '发现新版本',
+            description: `童梦AI v${data.version} (${data.build}) 已发布`,
+            duration: 0,
+            btn: (
+              <Button type="primary" size="small" onClick={() => window.open('/download', '_blank')}>
+                立即更新
+              </Button>
+            ),
+          });
+        }
+        if (data.build) localStorage.setItem(LOCAL_BUILD_KEY, data.build);
+      })
+      .catch(() => {});
+  }, []);
+}
