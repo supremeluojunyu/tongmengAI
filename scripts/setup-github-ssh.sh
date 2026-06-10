@@ -43,19 +43,21 @@ echo ""
 if [ -n "$GITHUB_TOKEN" ]; then
   echo ">>> 使用 GITHUB_TOKEN 添加 SSH Key..."
   TITLE="tongmeng-ai-$(hostname)-$(date +%Y%m%d)"
+  JSON_BODY="{\"title\":\"$TITLE\",\"key\":\"$PUBKEY\"}"
   HTTP=$(curl -s -o /tmp/gh-key-resp.json -w "%{http_code}" \
     -X POST -H "Authorization: token $GITHUB_TOKEN" \
     -H "Accept: application/vnd.github+json" \
     https://api.github.com/user/keys \
-    -d "$(jq -n --arg title "$TITLE" --arg key "$PUBKEY" '{title:$title, key:$key}')")
+    -d "$JSON_BODY")
   if [ "$HTTP" = "201" ] || [ "$HTTP" = "422" ]; then
     echo "SSH Key 已添加或已存在 (HTTP $HTTP)"
   else
     echo "用户 Key 添加失败 (HTTP $HTTP)，尝试 Deploy Key..."
+    DEPLOY_JSON="{\"title\":\"$TITLE\",\"key\":\"$PUBKEY\",\"read_only\":false}"
     curl -sf -X POST -H "Authorization: token $GITHUB_TOKEN" \
       -H "Accept: application/vnd.github+json" \
       "https://api.github.com/repos/$REPO/keys" \
-      -d "$(jq -n --arg title "$TITLE" --arg key "$PUBKEY" '{title:$title, key:$key, read_only:false}')" \
+      -d "$DEPLOY_JSON" \
       && echo "Deploy Key 已添加到仓库" || echo "Deploy Key 添加失败，请手动添加公钥"
   fi
 fi

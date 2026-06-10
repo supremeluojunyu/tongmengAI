@@ -105,11 +105,21 @@ export DEPLOY_WEBHOOK_SECRET=your-secret
 
 **推送代码到 GitHub**：
 
+仓库地址：[supremeluojunyu/tongmengAI](https://github.com/supremeluojunyu/tongmengAI)
+
 ```bash
-git init && git add . && git commit -m "init: 童梦AI"
-git remote add origin https://github.com/你的用户名/tongmeng-ai.git
-git push -u origin main
+# 1. 配置 SSH（首次）
+./scripts/setup-github-ssh.sh
+# 将输出的公钥添加到 https://github.com/settings/ssh/new
+
+# 2. 手动推送
+./scripts/git-push.sh
+
+# 3. 自动推送（已启用 post-commit hook，每次 commit 后自动 push）
+# 临时禁用: touch .git/disable-auto-push
 ```
+
+远程仓库 SSH 地址：`git@github.com:supremeluojunyu/tongmengAI.git`
 
 打标签发布正式版：
 
