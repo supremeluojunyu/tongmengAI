@@ -143,7 +143,8 @@ function renderDownloadPage(info) {
       border-radius: 24px; padding: 40px 32px;
       box-shadow: 0 8px 40px rgba(126,184,218,0.25); text-align: center;
     }
-    .logo { font-size: 64px; animation: breathe 3s ease-in-out infinite; }
+    .logo { width: 100px; height: 100px; margin: 0 auto; animation: breathe 3s ease-in-out infinite; }
+    .logo img { width: 100%; height: 100%; display: block; }
     @keyframes breathe { 0%,100% { transform: scale(1); opacity: 0.85; } 50% { transform: scale(1.06); opacity: 1; } }
     h1 { font-size: 28px; font-weight: 300; color: #5a9bc4; margin: 16px 0 8px; letter-spacing: 4px; }
     .subtitle { color: #999; font-size: 14px; margin-bottom: 32px; }
@@ -159,7 +160,7 @@ function renderDownloadPage(info) {
 </head>
 <body>
   <div class="card">
-    <div class="logo">🌙</div>
+    <div class="logo"><img src="/tongmeng-logo.svg" alt="童梦AI" /></div>
     <h1>童梦AI</h1>
     <p class="subtitle">儿童无感监测 · 智能助眠安抚</p>
     <div class="info">

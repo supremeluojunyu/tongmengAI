@@ -69,6 +69,14 @@ app.use('/api/admin', adminRouter);
 
 registerDownloadRoutes(app);
 
+app.get('/tongmeng-logo.svg', (_, res) => {
+  const logoPath = path.join(__dirname, '../../tongmeng-logo.svg');
+  res.type('image/svg+xml');
+  res.sendFile(logoPath, err => {
+    if (err) res.status(404).end();
+  });
+});
+
 const webDist = path.join(__dirname, '../../web/dist');
 app.use(express.static(webDist));
 

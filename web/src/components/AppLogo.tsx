@@ -1,0 +1,92 @@
+import { useId } from 'react';
+
+interface AppLogoProps {
+  size?: number;
+  animated?: boolean;
+}
+
+export default function AppLogo({ size = 48, animated = false }: AppLogoProps) {
+  const uid = useId().replace(/:/g, '');
+
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 512 512"
+      width={size}
+      height={size}
+      role="img"
+      aria-label="童梦AI"
+      className={animated ? 'breathe' : undefined}
+      style={{ display: 'block' }}
+    >
+      <defs>
+        <linearGradient id={`${uid}-outerGrad`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#FFB6C1" />
+          <stop offset="100%" stopColor="#87CEEB" />
+        </linearGradient>
+        <radialGradient id={`${uid}-innerGrad`} cx="50%" cy="42%" r="58%">
+          <stop offset="0%" stopColor="#FFFEF9" />
+          <stop offset="100%" stopColor="#FFFDF7" />
+        </radialGradient>
+        <linearGradient id={`${uid}-moonGrad`} x1="20%" y1="10%" x2="80%" y2="90%">
+          <stop offset="0%" stopColor="#FFB6C1" />
+          <stop offset="100%" stopColor="#87CEEB" />
+        </linearGradient>
+        <filter id={`${uid}-dropShadow`} x="-30%" y="-30%" width="160%" height="160%">
+          <feDropShadow dx="0" dy="6" stdDeviation="12" floodOpacity="0.12" />
+        </filter>
+        <filter id={`${uid}-starGlow`} x="-80%" y="-80%" width="260%" height="260%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        <filter id={`${uid}-moonGlow`} x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        <mask id={`${uid}-crescentMask`}>
+          <circle cx="248" cy="228" r="88" fill="#fff" />
+          <circle cx="286" cy="208" r="72" fill="#000" />
+        </mask>
+      </defs>
+
+      <circle cx="256" cy="256" r="248" fill={`url(#${uid}-outerGrad)`} filter={`url(#${uid}-dropShadow)`} />
+      <circle cx="256" cy="256" r="248" fill="none" stroke="#FFD700" strokeWidth="2" opacity="0.25" />
+      <circle cx="256" cy="256" r="214" fill={`url(#${uid}-innerGrad)`} />
+
+      <g filter={`url(#${uid}-starGlow)`}>
+        <polygon points="392,96 398,114 417,114 402,126 408,144 392,133 376,144 382,126 367,114 386,114" fill="#FFD93D" />
+        <polygon points="118,118 122,128 133,128 124,135 128,145 118,138 108,145 112,135 103,128 114,128" fill="#FFE066" />
+        <polygon points="408,372 412,380 421,380 414,386 417,395 408,389 399,395 402,386 395,380 404,380" fill="#FFD93D" />
+        <circle cx="112" cy="392" r="6" fill="#FFE066" />
+        <circle cx="418" cy="252" r="5" fill="#FFD93D" />
+      </g>
+
+      <g mask={`url(#${uid}-crescentMask)`} filter={`url(#${uid}-moonGlow)`}>
+        <circle cx="248" cy="228" r="88" fill={`url(#${uid}-moonGrad)`} opacity="0.75" />
+      </g>
+
+      <ellipse cx="228" cy="222" rx="7" ry="9" fill="#E8A0B0" opacity="0.45" />
+      <ellipse cx="258" cy="218" rx="6" ry="8" fill="#E8A0B0" opacity="0.42" />
+      <path
+        d="M 222 242 Q 244 256 268 238"
+        fill="none"
+        stroke="#E8A0B0"
+        strokeWidth="4"
+        strokeLinecap="round"
+        opacity="0.48"
+      />
+
+      <path
+        d="M 256 418 C 256 418 228 392 228 372 C 228 358 240 348 256 360 C 272 348 284 358 284 372 C 284 392 256 418 256 418 Z"
+        fill="#FFB6C1"
+        opacity="0.85"
+      />
+    </svg>
+  );
+}
