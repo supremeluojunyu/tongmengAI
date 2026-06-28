@@ -35,9 +35,16 @@ export default function ReportPage() {
   const currentChild = useAppStore(s => s.currentChild);
   const [period, setPeriod] = useState('day');
   const [report, setReport] = useState<ReportData | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (currentChild) api.getReport(currentChild.id, period).then(setReport).catch(() => {});
+    if (!currentChild) return;
+    setLoading(true);
+    setReport(null);
+    api.getReport(currentChild.id, period)
+      .then(setReport)
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [currentChild, period]);
 
   if (!currentChild) {
@@ -53,7 +60,13 @@ export default function ReportPage() {
         ]} />
       </div>
 
-      {report && (
+      {(loading || !report) ? (
+        <div className="moon-gauge breathe slide-up" style={{ margin: '48px auto', maxWidth: 240, textAlign: 'center' }}>
+          <div className="moon-gauge-emoji">📊</div>
+          <div className="moon-gauge-label">正在生成报告...</div>
+          <div className="moon-gauge-stage">请稍候</div>
+        </div>
+      ) : (
         <>
           <div className="stat-grid slide-up">
             {STATS.map(s => (
