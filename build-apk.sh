@@ -32,20 +32,23 @@ ensure_gradle
 export VITE_SERVER_URL="${VITE_SERVER_URL:-http://124.220.4.69:9050}"
 echo "   API 地址: $VITE_SERVER_URL"
 
-echo "1. 构建 Web..."
+echo "1. 生成应用图标..."
+(cd "$ROOT/web" && node "$ROOT/scripts/generate-icons.mjs")
+
+echo "2. 构建 Web..."
 npm run build
 
-echo "2. 写入构建信息..."
+echo "3. 写入构建信息..."
 BUILD=$(date +%Y%m%d%H%M)
 VERSION=$(node -p "require('./package.json').version")
 cat > dist/build-info.json <<EOF
 {"version":"$VERSION","build":"$BUILD","updatedAt":"$(date -Iseconds)"}
 EOF
 
-echo "3. 同步 Capacitor..."
+echo "4. 同步 Capacitor..."
 npx cap sync android
 
-echo "4. 构建 APK..."
+echo "5. 构建 APK..."
 cd android
 if [ -x ./gradlew ] && ./gradlew --version &>/dev/null; then
   ./gradlew assembleDebug --no-daemon

@@ -6,6 +6,17 @@ import { APP_VERSION, APP_BUILD } from '../config.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DOWNLOADS_DIR = path.join(__dirname, '../../downloads');
 const BUILD_INFO_FILE = path.join(DOWNLOADS_DIR, 'build-info.json');
+const LOGO_SVG_PATH = path.join(__dirname, '../../tongmeng-logo.svg');
+
+function loadLogoSvgInline() {
+  try {
+    return fs.readFileSync(LOGO_SVG_PATH, 'utf8')
+      .replace(/<\?xml.*?\?>\s*/i, '')
+      .replace(/\s*(role|aria-label)="[^"]*"/g, '');
+  } catch {
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><circle cx="256" cy="256" r="200" fill="#FFB6C1"/></svg>';
+  }
+}
 
 const APK_CANDIDATES = [
   path.join(DOWNLOADS_DIR, 'tongmeng-ai.apk'),
@@ -123,6 +134,7 @@ function renderDownloadPage(info) {
   const downloadBtn = info.available
     ? `<a class="btn btn-primary" href="/download/apk">📥 下载 Android APK (v${info.version})</a>`
     : `<span class="btn btn-disabled">APK 构建中，请稍后再试</span>`;
+  const logoSvg = loadLogoSvgInline();
 
   return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -144,7 +156,7 @@ function renderDownloadPage(info) {
       box-shadow: 0 8px 40px rgba(126,184,218,0.25); text-align: center;
     }
     .logo { width: 100px; height: 100px; margin: 0 auto; animation: breathe 3s ease-in-out infinite; }
-    .logo img { width: 100%; height: 100%; display: block; }
+    .logo svg { width: 100%; height: 100%; display: block; }
     @keyframes breathe { 0%,100% { transform: scale(1); opacity: 0.85; } 50% { transform: scale(1.06); opacity: 1; } }
     h1 { font-size: 28px; font-weight: 300; color: #5a9bc4; margin: 16px 0 8px; letter-spacing: 4px; }
     .subtitle { color: #999; font-size: 14px; margin-bottom: 32px; }
@@ -160,7 +172,7 @@ function renderDownloadPage(info) {
 </head>
 <body>
   <div class="card">
-    <div class="logo"><img src="/tongmeng-logo.svg" alt="童梦AI" /></div>
+    <div class="logo">${logoSvg}</div>
     <h1>童梦AI</h1>
     <p class="subtitle">儿童无感监测 · 智能助眠安抚</p>
     <div class="info">
