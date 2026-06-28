@@ -26,8 +26,6 @@ export default function KnowledgePage() {
 
   return (
     <div className="fade-in" style={{ padding: 16 }}>
-      <h2 className="page-title">📚 育儿知识</h2>
-
       <Input
         className="search-box"
         prefix={<span style={{ fontSize: 18, marginRight: 4 }}>🔍</span>}
@@ -67,7 +65,12 @@ export default function KnowledgePage() {
         styles={{ body: { padding: 0 }, header: { display: 'none' } }}>
         {selected && (
           <>
-            <div className="drawer-cover">{selected.title}</div>
+            <div className="drawer-cover">
+              <button type="button" className="back-btn" onClick={() => setSelected(null)} aria-label="返回">
+                ◀
+              </button>
+              <div className="drawer-cover-title">{selected.title}</div>
+            </div>
             <div style={{ padding: '0 20px 24px' }}>
               {selected.video_url && (
                 <div className="video-player">

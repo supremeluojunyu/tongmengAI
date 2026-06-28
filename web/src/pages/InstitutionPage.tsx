@@ -52,8 +52,6 @@ export default function InstitutionPage() {
 
   return (
     <div className="fade-in" style={{ padding: 16 }}>
-      <h2 className="page-title">🏫 班级看板</h2>
-
       {alerts.length > 0 && (
         <div className="alert-card slide-up">
           <div className="section-card-title" style={{ color: '#cf5050' }}>

@@ -53,8 +53,7 @@ export default function ReportPage() {
 
   return (
     <div className="fade-in" style={{ padding: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h2 className="page-title" style={{ margin: 0 }}>📊 {currentChild.nickname} 的成长报告</h2>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
         <Segmented value={period} onChange={v => setPeriod(v as string)} options={[
           { value: 'day', label: '日' }, { value: 'week', label: '周' }, { value: 'month', label: '月' },
         ]} />

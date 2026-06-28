@@ -4,6 +4,278 @@ import { api } from '../services/api';
 import { useAppStore } from '../stores/appStore';
 import type { SootheRecord } from '../types';
 
+/** Web Audio API 生成安抚音效 */
+let audioCtx: AudioContext | null = null;
+
+const activeSound: {
+  osc?: OscillatorNode;
+  noise?: AudioBufferSourceNode;
+  gain?: GainNode;
+  lfos: OscillatorNode[];
+  extras: OscillatorNode[];
+  heartbeatTimer?: ReturnType<typeof setInterval>;
+} = { lfos: [], extras: [] };
+
+function getAudioCtx() {
+  const Ctx = window.AudioContext
+    || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  if (!audioCtx) audioCtx = new Ctx();
+  if (audioCtx.state === 'suspended') void audioCtx.resume();
+  return audioCtx;
+}
+
+function stopSound() {
+  if (activeSound.heartbeatTimer) {
+    clearInterval(activeSound.heartbeatTimer);
+    activeSound.heartbeatTimer = undefined;
+  }
+  activeSound.lfos.forEach(l => { try { l.stop(); } catch { /* ignore */ } });
+  activeSound.lfos = [];
+  activeSound.extras.forEach(o => { try { o.stop(); } catch { /* ignore */ } });
+  activeSound.extras = [];
+  if (activeSound.osc) {
+    try { activeSound.osc.stop(); } catch { /* ignore */ }
+    activeSound.osc = undefined;
+  }
+  if (activeSound.noise) {
+    try { activeSound.noise.stop(); } catch { /* ignore */ }
+    activeSound.noise = undefined;
+  }
+  if (activeSound.gain && audioCtx) {
+    try {
+      activeSound.gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+    } catch { /* ignore */ }
+    setTimeout(() => { try { activeSound.gain?.disconnect(); } catch { /* ignore */ } }, 600);
+    activeSound.gain = undefined;
+  }
+}
+
+function playSound(type: string) {
+  stopSound();
+  const ctx = getAudioCtx();
+
+  const gainNode = ctx.createGain();
+  gainNode.connect(ctx.destination);
+  activeSound.gain = gainNode;
+
+  switch (type) {
+    case 'rain': {
+      const bufferSize = ctx.sampleRate * 2;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * 0.4;
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 400;
+      source.connect(filter).connect(gainNode);
+      source.start();
+      activeSound.noise = source;
+      gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
+      break;
+    }
+    case 'ocean': {
+      const bufferSize = ctx.sampleRate * 2;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * 0.5;
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 600;
+      source.connect(filter).connect(gainNode);
+      source.start();
+      activeSound.noise = source;
+      const lfo = ctx.createOscillator();
+      const lfoGain = ctx.createGain();
+      lfo.frequency.value = 0.15;
+      lfoGain.gain.value = 0.08;
+      lfo.connect(lfoGain).connect(gainNode.gain);
+      lfo.start();
+      activeSound.lfos.push(lfo);
+      gainNode.gain.setValueAtTime(0.2, ctx.currentTime);
+      break;
+    }
+    case 'birds': {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = 1200;
+      const vibrato = ctx.createOscillator();
+      const vibratoGain = ctx.createGain();
+      vibrato.frequency.value = 6;
+      vibratoGain.gain.value = 30;
+      vibrato.connect(vibratoGain).connect(osc.frequency);
+      vibrato.start();
+      activeSound.lfos.push(vibrato);
+      osc.connect(gainNode);
+      osc.start();
+      activeSound.osc = osc;
+      gainNode.gain.setValueAtTime(0.08, ctx.currentTime);
+      break;
+    }
+    case 'wind': {
+      const bufferSize = ctx.sampleRate * 2;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * 0.3;
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = 300;
+      filter.Q.value = 0.5;
+      source.connect(filter).connect(gainNode);
+      source.start();
+      activeSound.noise = source;
+      gainNode.gain.setValueAtTime(0.12, ctx.currentTime);
+      break;
+    }
+    case 'music': {
+      const notes = [261.63, 329.63, 392.0, 523.25];
+      notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        const noteGain = ctx.createGain();
+        noteGain.gain.value = 0.06;
+        osc.connect(noteGain).connect(gainNode);
+        osc.start(ctx.currentTime + i * 0.5);
+        osc.stop(ctx.currentTime + i * 0.5 + 1.5);
+        activeSound.extras.push(osc);
+      });
+      gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+      break;
+    }
+    case 'story': {
+      const osc = ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.value = 150;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 400;
+      osc.connect(filter).connect(gainNode);
+      osc.start();
+      activeSound.osc = osc;
+      gainNode.gain.setValueAtTime(0.06, ctx.currentTime);
+      break;
+    }
+    case 'heartbeat': {
+      const pulse = () => {
+        const o = ctx.createOscillator();
+        o.type = 'sine';
+        o.frequency.value = 60;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.3, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+        o.connect(g).connect(gainNode);
+        o.start();
+        o.stop(ctx.currentTime + 0.15);
+      };
+      pulse();
+      setTimeout(pulse, 200);
+      activeSound.heartbeatTimer = setInterval(pulse, 1000);
+      gainNode.gain.setValueAtTime(0.12, ctx.currentTime);
+      break;
+    }
+    case 'shushing': {
+      const bufferSize = ctx.sampleRate * 2;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      source.connect(gainNode);
+      source.start();
+      activeSound.noise = source;
+      gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
+      break;
+    }
+    case 'lullaby': {
+      const melody = [392, 440, 494, 523, 494, 440, 392, 330];
+      melody.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        const noteGain = ctx.createGain();
+        noteGain.gain.value = 0.08;
+        osc.connect(noteGain).connect(gainNode);
+        osc.start(ctx.currentTime + i * 0.6);
+        osc.stop(ctx.currentTime + i * 0.6 + 0.5);
+        activeSound.extras.push(osc);
+      });
+      gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+      break;
+    }
+    case 'crickets': {
+      const osc = ctx.createOscillator();
+      osc.type = 'square';
+      osc.frequency.value = 4000;
+      const lfo = ctx.createOscillator();
+      const lfoGain = ctx.createGain();
+      lfo.frequency.value = 4;
+      lfoGain.gain.value = 4000;
+      lfo.connect(lfoGain).connect(osc.frequency);
+      lfo.start();
+      activeSound.lfos.push(lfo);
+      osc.connect(gainNode);
+      osc.start();
+      activeSound.osc = osc;
+      gainNode.gain.setValueAtTime(0.03, ctx.currentTime);
+      break;
+    }
+    case 'train': {
+      const bufferSize = ctx.sampleRate * 2;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * 0.5;
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 200;
+      source.connect(filter).connect(gainNode);
+      source.start();
+      activeSound.noise = source;
+      const lfo = ctx.createOscillator();
+      const lfoGain = ctx.createGain();
+      lfo.frequency.value = 0.8;
+      lfoGain.gain.value = 0.1;
+      lfo.connect(lfoGain).connect(gainNode.gain);
+      lfo.start();
+      activeSound.lfos.push(lfo);
+      gainNode.gain.setValueAtTime(0.18, ctx.currentTime);
+      break;
+    }
+    case 'vacuum': {
+      const bufferSize = ctx.sampleRate * 2;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * 0.6;
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = 800;
+      filter.Q.value = 1;
+      source.connect(filter).connect(gainNode);
+      source.start();
+      activeSound.noise = source;
+      gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+      break;
+    }
+    default:
+      break;
+  }
+}
+
 const SOUNDS = [
   { value: 'rain', emoji: '🌧️', label: '雨声' },
   { value: 'ocean', emoji: '🌊', label: '海浪' },
@@ -41,6 +313,8 @@ export default function SoothePage() {
     if (currentChild) api.getSootheRecords(currentChild.id).then(setRecords).catch(() => {});
   }, [currentChild]);
 
+  useEffect(() => () => stopSound(), []);
+
   const start = async () => {
     if (!currentChild) { message.warning('请先选择宝宝'); return; }
     try {
@@ -57,6 +331,7 @@ export default function SoothePage() {
   };
 
   const stop = async () => {
+    stopSound();
     if (recordId) {
       await api.stopSoothe(recordId, Math.floor(Math.random() * 15 + 5));
       setPlaying(false);
@@ -67,14 +342,12 @@ export default function SoothePage() {
 
   return (
     <div className="fade-in" style={{ padding: 16 }}>
-      <h2 className="page-title">🎵 安抚宝宝</h2>
-
       <div className="section-card slide-up">
         <div className="section-card-title">🎶 音效库</div>
         <div className="sound-grid">
           {SOUNDS.map(s => (
             <button key={s.value} className={`sound-btn ${sound === s.value ? 'active' : ''}`}
-              onClick={() => setSound(s.value)}>
+              onClick={() => { setSound(s.value); playSound(s.value); }}>
               <span className="sound-emoji">{s.emoji}</span>
               {s.label}
             </button>
