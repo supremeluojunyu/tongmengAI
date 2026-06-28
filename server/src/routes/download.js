@@ -6,7 +6,7 @@ import { APP_VERSION, APP_BUILD } from '../config.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DOWNLOADS_DIR = path.join(__dirname, '../../downloads');
 const BUILD_INFO_FILE = path.join(DOWNLOADS_DIR, 'build-info.json');
-const LOGO_SVG_PATH = path.join(__dirname, '../../tongmeng-logo.svg');
+const LOGO_SVG_PATH = path.join(__dirname, '../../../tongmeng-logo.svg');
 
 function loadLogoSvgInline() {
   try {
