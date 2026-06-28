@@ -56,7 +56,7 @@ export const api = {
   addChild: (data: Partial<Child>) =>
     request('/children', { method: 'POST', body: JSON.stringify(data) }),
   getDevices: () => request<Device[]>('/devices'),
-  getMonitoring: (childId: string) => request<MonitoringData>(`/monitoring/${childId}/current`),
+  getMonitoring: (childId: string) => request<MonitoringData | null>(`/monitoring/${childId}/current`),
   getHistory: (childId: string, hours = 24) =>
     request<MonitoringData[]>(`/monitoring/${childId}/history?hours=${hours}`),
   getReport: (childId: string, period = 'day') =>

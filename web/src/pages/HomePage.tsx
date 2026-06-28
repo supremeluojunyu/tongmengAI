@@ -60,7 +60,7 @@ export default function HomePage() {
   const loadMonitoring = useCallback(async (childId: string) => {
     try {
       const data = await api.getMonitoring(childId);
-      setMonitoring(data);
+      setMonitoring(data?.heart_rate != null ? data : null);
     } catch { /* ignore */ }
   }, []);
 
@@ -134,6 +134,11 @@ export default function HomePage() {
       setSimRunning(!!res.running);
       simRunningRef.current = !!res.running;
       subtleFeedback(!res.running);
+      if (!res.running) {
+        setMonitoring(null);
+      } else if (currentChild) {
+        loadMonitoring(currentChild.id);
+      }
     } catch { /* 静默失败，不暴露任何提示 */ }
     finally {
       togglingRef.current = false;

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
 import db from '../db/index.js';
 import { authRequired } from '../middleware/auth.js';
+import { isSimulating } from '../services/simulator.js';
 
 const router = Router();
 
@@ -135,7 +136,44 @@ function dominantEmotion(hourData) {
   return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
 }
 
-function buildReportFromSnapshots(snapshots, period, sootheRecords) {
+function minSnapshotsForPeriod(days) {
+  if (days === 1) return 48;
+  if (days === 7) return 7 * 16;
+  return 30 * 8;
+}
+
+/** 监测开启时：历史段用预填充，近期用实时数据衔接 */
+function buildSnapshotsForReport(childId, days, realSnapshots) {
+  const minCount = minSnapshotsForPeriod(days);
+  if (realSnapshots.length >= minCount) return realSnapshots;
+
+  const prefill = generatePrefillSnapshots(childId, days);
+  if (!realSnapshots.length) return prefill;
+
+  const sessionStart = realSnapshots[0].recorded_at;
+  const historical = prefill.filter(s => s.recorded_at < sessionStart);
+  return [...historical, ...realSnapshots];
+}
+
+function buildEmptyReport(period, sootheRecords) {
+  return {
+    period,
+    summary: {
+      totalSleepHours: '0.0',
+      deepSleepRatio: 0,
+      nightWakeCount: 0,
+      avgHeartRate: 0,
+      sootheCount: sootheRecords.length,
+    },
+    trend: [],
+    emotionHeatmap: Array.from({ length: 24 }, (_, h) => ({ hour: h, emotion: 'calm', count: 0 })),
+    sootheRecords,
+    suggestions: ['暂未采集到监测数据，请确认设备已连接'],
+  };
+}
+
+function buildReportFromSnapshots(snapshots, period, sootheRecords, days) {
+  const intervalHours = days === 1 ? 0.5 : 1;
   const sleepHours = snapshots.filter(s => ['light', 'deep', 'rem'].includes(s.sleep_stage)).length;
   const deepHours = snapshots.filter(s => s.sleep_stage === 'deep').length;
   const awakeCount = snapshots.filter(s => s.sleep_stage === 'awake').length;
@@ -165,9 +203,9 @@ function buildReportFromSnapshots(snapshots, period, sootheRecords) {
   return {
     period,
     summary: {
-      totalSleepHours: (sleepHours * 0.5).toFixed(1),
+      totalSleepHours: (sleepHours * intervalHours).toFixed(1),
       deepSleepRatio: sleepHours ? Math.round((deepHours / sleepHours) * 100) : 0,
-      nightWakeCount: Math.floor(awakeCount / 3),
+      nightWakeCount: Math.max(0, Math.floor(awakeCount / (days === 1 ? 3 : days === 7 ? 5 : 8))),
       avgHeartRate,
       sootheCount: sootheRecords.length,
     },
@@ -185,12 +223,16 @@ function buildReportFromSnapshots(snapshots, period, sootheRecords) {
 }
 
 router.get('/:childId/current', authRequired, (req, res) => {
+  if (!isSimulating()) {
+    return res.json(null);
+  }
+
   const latest = db.prepare(
     'SELECT * FROM monitoring_snapshots WHERE child_id = ? ORDER BY recorded_at DESC LIMIT 1'
   ).get(req.params.childId);
 
   if (!latest) {
-    return res.json(generateMockSnapshot(req.params.childId));
+    return res.json(null);
   }
 
   const devices = db.prepare('SELECT * FROM devices WHERE child_id = ?').all(req.params.childId);
@@ -220,40 +262,20 @@ router.get('/:childId/report', authRequired, (req, res) => {
   const days = period === 'week' ? 7 : period === 'month' ? 30 : 1;
   const since = new Date(Date.now() - days * 86400000).toISOString();
 
-  let snapshots = db.prepare(
-    'SELECT * FROM monitoring_snapshots WHERE child_id = ? AND recorded_at >= ? ORDER BY recorded_at ASC'
-  ).all(req.params.childId, since);
-
   const sootheRecords = db.prepare(
     'SELECT * FROM soothe_records WHERE child_id = ? AND started_at >= ? ORDER BY started_at DESC'
   ).all(req.params.childId, since);
 
-  // 数据量不足时，用平滑曲线预填充历史（同一儿童每次生成结果一致）
-  if (snapshots.length < 50) {
-    snapshots = generatePrefillSnapshots(req.params.childId, days);
+  if (!isSimulating()) {
+    return res.json(buildEmptyReport(period, sootheRecords));
   }
 
-  res.json(buildReportFromSnapshots(snapshots, period, sootheRecords));
-});
+  const realSnapshots = db.prepare(
+    'SELECT * FROM monitoring_snapshots WHERE child_id = ? AND recorded_at >= ? ORDER BY recorded_at ASC'
+  ).all(req.params.childId, since);
 
-function generateMockSnapshot(childId) {
-  const emotions = ['calm', 'sleepy', 'excited', 'irritable'];
-  const emotion = emotions[Math.floor(Math.random() * emotions.length)];
-  return {
-    child_id: childId,
-    emotion,
-    sleep_stage: 'light',
-    heart_rate: 75 + Math.floor(Math.random() * 20),
-    breath_rate: 18 + Math.floor(Math.random() * 4),
-    body_movement: Math.floor(Math.random() * 3),
-    exoskeleton_mode: 'horizontal',
-    exoskeleton_force: 'standard',
-    exoskeleton_battery: 78,
-    recorded_at: new Date().toISOString(),
-    emotionInfo: EMOTION_MAP[emotion],
-    sleepStageLabel: '浅睡',
-    devices: [],
-  };
-}
+  const snapshots = buildSnapshotsForReport(req.params.childId, days, realSnapshots);
+  res.json(buildReportFromSnapshots(snapshots, period, sootheRecords, days));
+});
 
 export default router;

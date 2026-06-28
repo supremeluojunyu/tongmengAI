@@ -221,6 +221,8 @@ function tick() {
 
 export function startSimulator(intervalMs = 5000) {
   if (simulating) return;
+  db.prepare('DELETE FROM monitoring_snapshots').run();
+  profiles.clear();
   currentIntervalMs = intervalMs;
   simulating = true;
   startedAt = Date.now();
@@ -235,6 +237,8 @@ export function stopSimulator() {
     intervalId = null;
   }
   simulating = false;
+  db.prepare('DELETE FROM monitoring_snapshots').run();
+  profiles.clear();
   console.log('Device simulator stopped');
 }
 
