@@ -1,11 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Card, List, Button, Modal, Form, Input, InputNumber, Select, message, Tag, Switch } from 'antd';
-import { PlusOutlined, LogoutOutlined, CustomerServiceOutlined, SettingOutlined, CrownOutlined } from '@ant-design/icons';
+import { Button, Modal, Form, Input, InputNumber, Select, message, Switch } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useAppStore } from '../stores/appStore';
 import { MEMBERSHIP_LABELS, ROLE_LABELS } from '../types';
 import type { Device } from '../types';
+
+const DEVICE_EMOJI: Record<string, string> = { nirs: '🧠', ppg: '💓', exoskeleton: '🤱' };
+
+function batteryGrad(p: number) {
+  if (p > 60) return 'linear-gradient(90deg, #a8e6cf, #52c41a)';
+  if (p > 30) return 'linear-gradient(90deg, #ffd666, #faad14)';
+  return 'linear-gradient(90deg, #ffccc7, #ff7875)';
+}
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -22,70 +30,105 @@ export default function ProfilePage() {
   const addChild = async (values: Record<string, unknown>) => {
     try {
       await api.addChild(values);
-      const list = await api.getChildren();
-      setChildren(list);
+      setChildren(await api.getChildren());
       setAddModal(false);
       form.resetFields();
-      message.success('儿童信息已添加');
+      message.success('宝宝信息已添加 🎉');
     } catch (e: unknown) {
       message.error(e instanceof Error ? e.message : '添加失败');
     }
   };
 
+  const menuItems = [
+    { icon: '💬', label: '在线客服', action: () => {} },
+    { icon: '📞', label: '400-888-6688', action: () => {} },
+    { icon: '🔔', label: '通知开关', switch: true, defaultChecked: true },
+    { icon: '🎤', label: '语音唤醒', switch: true },
+    { icon: '📱', label: '下载 Android APP', action: () => window.open('/download', '_blank') },
+    ...(user?.role === 'admin' ? [{ icon: '⚙️', label: '管理后台', action: () => navigate('/admin') }] : []),
+  ];
+
   return (
-    <div style={{ padding: 16 }}>
-      <Card className="card-soft" style={{ marginBottom: 16 }}>
+    <div className="fade-in" style={{ padding: 16 }}>
+      <div className="section-card slide-up">
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg, #7eb8da, #fce4ec)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>👤</div>
+          <div className="profile-avatar">👤</div>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 500 }}>{user?.name}</div>
-            <Tag color="blue">{ROLE_LABELS[user?.role || 'parent']}</Tag>
-            <Tag icon={<CrownOutlined />} color="gold">{MEMBERSHIP_LABELS[user?.membership || 'basic']}</Tag>
+            <div className="profile-name">{user?.name}</div>
+            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+              {ROLE_LABELS[user?.role || 'parent']}
+            </span>
+            <div style={{ marginTop: 6 }}>
+              <span className="member-tag">👑 {MEMBERSHIP_LABELS[user?.membership || 'basic']}</span>
+            </div>
           </div>
         </div>
-        <Button type="primary" ghost size="small" style={{ marginTop: 12 }}>升级会员</Button>
-      </Card>
+        <Button style={{ marginTop: 14, borderRadius: 16, border: 'none', background: 'var(--gradient-main)', color: '#fff' }} size="small">
+          ✨ 升级会员
+        </Button>
+      </div>
 
-      <Card className="card-soft" title="👶 儿童管理" size="small" style={{ marginBottom: 12 }}
-        extra={<Button type="link" icon={<PlusOutlined />} onClick={() => setAddModal(true)}>添加</Button>}>
-        <List size="small" dataSource={children} renderItem={c => (
-          <List.Item>
-            <span>{c.nickname} · {c.age}岁 · {c.gender}</span>
-            {c.special_needs && <Tag color="orange">{c.special_needs}</Tag>}
-          </List.Item>
-        )} />
-      </Card>
+      <div className="section-card slide-up">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <div className="section-card-title" style={{ margin: 0 }}>👶 宝宝管理</div>
+          <Button type="link" icon={<PlusOutlined />} onClick={() => setAddModal(true)} style={{ color: '#d4738a' }}>添加</Button>
+        </div>
+        {children.map(c => (
+          <div key={c.id} className="child-item">
+            <span className="child-emoji">{c.gender === '女' ? '👧' : '👦'}</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600 }}>{c.nickname}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{c.age}岁 · {c.gender}</div>
+            </div>
+            {c.special_needs && (
+              <span className="pill-tag orange">{c.special_needs}</span>
+            )}
+          </div>
+        ))}
+      </div>
 
-      <Card className="card-soft" title="📡 设备管理" size="small" style={{ marginBottom: 12 }}>
-        <List size="small" dataSource={devices} renderItem={d => (
-          <List.Item>
-            <span>{d.name} ({d.type})</span>
-            <Tag color={d.status === 'online' ? 'green' : 'default'}>{d.status === 'online' ? '在线' : '离线'} {d.battery}%</Tag>
-          </List.Item>
-        )} />
-      </Card>
+      <div className="section-card slide-up">
+        <div className="section-card-title">📡 设备管理</div>
+        {devices.map(d => (
+          <div key={d.id} className="child-item">
+            <span className="child-emoji">{DEVICE_EMOJI[d.type] || '📟'}</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 500, fontSize: 14 }}>{d.name}</div>
+              <div className="device-battery-bar" style={{ marginTop: 6 }}>
+                <div className="device-battery-fill" style={{ width: `${d.battery}%`, background: batteryGrad(d.battery) }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+              {d.status === 'online' ? <span className="online-dot" /> : <span className="offline-dot" />}
+              {d.battery}%
+            </div>
+          </div>
+        ))}
+      </div>
 
-      <Card className="card-soft" size="small" style={{ marginBottom: 12 }}>
-        <List size="small">
-          <List.Item><CustomerServiceOutlined /> 在线客服</List.Item>
-          <List.Item>📞 400-888-6688</List.Item>
-          <List.Item><SettingOutlined /> 通知开关 <Switch defaultChecked size="small" style={{ float: 'right' }} /></List.Item>
-          <List.Item>🎤 语音唤醒 <Switch size="small" style={{ float: 'right' }} /></List.Item>
-          <List.Item style={{ cursor: 'pointer' }} onClick={() => window.open('/download', '_blank')}>📱 下载 Android APP</List.Item>
-          {user?.role === 'admin' && (
-            <List.Item style={{ cursor: 'pointer' }} onClick={() => navigate('/admin')}>⚙️ 管理后台</List.Item>
-          )}
-        </List>
-      </Card>
+      <div className="section-card slide-up">
+        {menuItems.map((item, i) => (
+          <div key={i} className="menu-item" onClick={item.action}>
+            <span className="menu-item-icon">{item.icon}</span>
+            <span className="menu-item-label">{item.label}</span>
+            {'switch' in item && item.switch
+              ? <span onClick={e => e.stopPropagation()}><Switch defaultChecked={item.defaultChecked} size="small" /></span>
+              : <span className="menu-item-arrow">›</span>}
+          </div>
+        ))}
+      </div>
 
-      <Button danger icon={<LogoutOutlined />} block onClick={() => { logout(); navigate('/login'); }} style={{ borderRadius: 20 }}>退出登录</Button>
+      <Button block onClick={() => { logout(); navigate('/login'); }}
+        style={{ borderRadius: 20, height: 44, color: '#ff7875', borderColor: '#ffccc7' }}>
+        👋 退出登录
+      </Button>
 
-      <Modal title="添加儿童" open={addModal} onCancel={() => setAddModal(false)} onOk={() => form.submit()} okText="保存">
+      <Modal title="添加宝宝" open={addModal} onCancel={() => setAddModal(false)} onOk={() => form.submit()} okText="保存">
         <Form form={form} layout="vertical" onFinish={addChild}>
           <Form.Item name="nickname" label="昵称" rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item name="age" label="年龄" rules={[{ required: true }]}><InputNumber min={0} max={6} style={{ width: '100%' }} /></Form.Item>
           <Form.Item name="gender" label="性别" rules={[{ required: true }]}>
-            <Select options={[{ value: '男', label: '男' }, { value: '女', label: '女' }]} />
+            <Select options={[{ value: '男', label: '👦 男' }, { value: '女', label: '👧 女' }]} />
           </Form.Item>
           <Form.Item name="specialNeeds" label="特殊需要">
             <Select allowClear options={[

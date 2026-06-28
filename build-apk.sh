@@ -28,6 +28,10 @@ ensure_gradle() {
 
 ensure_gradle
 
+# APK 构建使用生产环境 API 地址（可通过环境变量覆盖）
+export VITE_SERVER_URL="${VITE_SERVER_URL:-http://124.220.4.69:9050}"
+echo "   API 地址: $VITE_SERVER_URL"
+
 echo "1. 构建 Web..."
 npm run build
 

@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Input, Tabs, Card, Tag, List, Drawer } from 'antd';
-import { SearchOutlined, CrownOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { Input, Tabs, Drawer } from 'antd';
 import { api } from '../services/api';
 import type { Article } from '../types';
 
 const CATEGORIES: Record<string, string> = {
   sleep: '睡眠', emotion: '情绪', diet: '饮食', sensory: '感统训练',
+};
+
+const CAT_ICON: Record<string, string> = {
+  sleep: '🌙', emotion: '💛', diet: '🍼', sensory: '🎨',
 };
 
 export default function KnowledgePage() {
@@ -22,46 +25,64 @@ export default function KnowledgePage() {
   }, [category, search]);
 
   return (
-    <div style={{ padding: 16 }}>
-      <h2 style={{ marginBottom: 16, fontWeight: 500 }}>📚 育儿知识</h2>
-      <Input prefix={<SearchOutlined />} placeholder="搜索文章..." value={search} onChange={e => setSearch(e.target.value)}
-        style={{ marginBottom: 16, borderRadius: 20 }} allowClear />
+    <div className="fade-in" style={{ padding: 16 }}>
+      <h2 className="page-title">📚 育儿知识</h2>
 
-      <Tabs activeKey={category || 'all'} onChange={k => setCategory(k === 'all' ? '' : k)} items={[
-        { key: 'all', label: '全部' },
-        ...Object.entries(CATEGORIES).map(([k, v]) => ({ key: k, label: v })),
-      ]} />
+      <Input
+        className="search-box"
+        prefix={<span style={{ fontSize: 18, marginRight: 4 }}>🔍</span>}
+        placeholder="搜索育儿文章..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        allowClear
+        variant="borderless"
+      />
 
-      <List dataSource={articles} renderItem={a => (
-        <Card className="card-soft" size="small" style={{ marginBottom: 10, cursor: 'pointer' }}
-          onClick={() => setSelected(a)} hoverable>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+      <Tabs activeKey={category || 'all'} onChange={k => setCategory(k === 'all' ? '' : k)}
+        items={[
+          { key: 'all', label: '✨ 全部' },
+          ...Object.entries(CATEGORIES).map(([k, v]) => ({ key: k, label: `${CAT_ICON[k] || '📖'} ${v}` })),
+        ]} />
+
+      {articles.map(a => (
+        <div key={a.id} className="article-card slide-up" onClick={() => setSelected(a)}>
+          <div className="article-icon">{CAT_ICON[a.category] || '📖'}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 600, marginBottom: 6, fontSize: 15 }}>{a.title}</div>
             <div>
-              <div style={{ fontWeight: 500, marginBottom: 4 }}>{a.title}</div>
-              <div>
-                <Tag>{CATEGORIES[a.category] || a.category}</Tag>
-                <Tag color="blue">{a.age_group}岁</Tag>
-                {a.special_type && <Tag color="orange">{a.special_type}</Tag>}
-              </div>
-            </div>
-            <div style={{ textAlign: 'right', color: '#999', fontSize: 12 }}>
-              {a.is_premium ? <CrownOutlined style={{ color: '#faad14' }} /> : null}
-              {a.video_url && <PlayCircleOutlined style={{ marginLeft: 8 }} />}
-              <div>{a.views} 阅读</div>
+              <span className="pill-tag pink">{CATEGORIES[a.category] || a.category}</span>
+              <span className="pill-tag blue">{a.age_group}岁</span>
+              {a.special_type && <span className="pill-tag orange">{a.special_type}</span>}
+              {a.is_premium ? <span className="pill-tag orange">👑 会员</span> : null}
             </div>
           </div>
-        </Card>
-      )} />
+          <div style={{ textAlign: 'right', color: '#bbb', fontSize: 12, flexShrink: 0 }}>
+            {a.video_url && <div style={{ fontSize: 20 }}>▶️</div>}
+            <div>{a.views} 阅读</div>
+          </div>
+        </div>
+      ))}
 
-      <Drawer title={selected?.title} open={!!selected} onClose={() => setSelected(null)} width="100%">
+      <Drawer open={!!selected} onClose={() => setSelected(null)} width="100%"
+        styles={{ body: { padding: 0 }, header: { display: 'none' } }}>
         {selected && (
           <>
-            {selected.video_url && (
-              <div style={{ background: '#000', height: 200, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', marginBottom: 16 }}>
-                <PlayCircleOutlined style={{ fontSize: 48 }} /> 视频课程
+            <div className="drawer-cover">{selected.title}</div>
+            <div style={{ padding: '0 20px 24px' }}>
+              {selected.video_url && (
+                <div className="video-player">
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 48, marginBottom: 8 }}>▶️</div>
+                    <div style={{ fontSize: 14, opacity: 0.8 }}>专家视频课程</div>
+                  </div>
+                </div>
+              )}
+              <div style={{ marginBottom: 12 }}>
+                <span className="pill-tag pink">{CATEGORIES[selected.category]}</span>
+                <span className="pill-tag blue">{selected.age_group}岁</span>
               </div>
-            )}
-            <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.8 }}>{selected.content}</div>
+              <div className="drawer-body">{selected.content}</div>
+            </div>
           </>
         )}
       </Drawer>

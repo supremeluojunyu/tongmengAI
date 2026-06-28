@@ -1,14 +1,15 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { HomeOutlined, SoundOutlined, BarChartOutlined, ReadOutlined, UserOutlined, TeamOutlined } from '@ant-design/icons';
 import { useAppStore } from '../stores/appStore';
 
 const tabs = [
-  { key: '/', icon: <HomeOutlined />, label: '首页' },
-  { key: '/soothe', icon: <SoundOutlined />, label: '安抚' },
-  { key: '/report', icon: <BarChartOutlined />, label: '报告' },
-  { key: '/knowledge', icon: <ReadOutlined />, label: '育儿' },
-  { key: '/profile', icon: <UserOutlined />, label: '我的' },
+  { key: '/', emoji: '🏠', label: '首页' },
+  { key: '/soothe', emoji: '🎵', label: '安抚' },
+  { key: '/report', emoji: '📊', label: '报告' },
+  { key: '/knowledge', emoji: '📚', label: '育儿' },
+  { key: '/profile', emoji: '👤', label: '我的' },
 ];
+
+const instTab = { key: '/institution', emoji: '🏫', label: '班级' };
 
 export default function AppLayout() {
   const navigate = useNavigate();
@@ -17,7 +18,7 @@ export default function AppLayout() {
   const isInstitution = user?.role === 'teacher' || user?.role === 'org_admin';
 
   const allTabs = isInstitution
-    ? [...tabs.slice(0, 4), { key: '/institution', icon: <TeamOutlined />, label: '班级' }, tabs[4]]
+    ? [...tabs.slice(0, 4), instTab, tabs[4]]
     : tabs;
 
   return (
@@ -26,21 +27,20 @@ export default function AppLayout() {
         <Outlet />
       </div>
       <nav className="bottom-nav">
-        <div style={{ display: 'flex', justifyContent: 'space-around' }}>
-          {allTabs.map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => navigate(tab.key)}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px',
-                color: location.pathname === tab.key ? '#7eb8da' : '#999',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 11,
-              }}
-            >
-              <span style={{ fontSize: 22 }}>{tab.icon}</span>
-              {tab.label}
-            </button>
-          ))}
+        <div className="nav-row">
+          {allTabs.map(tab => {
+            const active = location.pathname === tab.key;
+            return (
+              <button
+                key={tab.key}
+                className={`nav-btn ${active ? 'active' : ''}`}
+                onClick={() => navigate(tab.key)}
+              >
+                <span className="nav-icon">{tab.emoji}</span>
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
       </nav>
     </div>

@@ -1,8 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Card, Button, Tag, message, Modal, Checkbox, Row, Col, Badge } from 'antd';
-import { AlertOutlined, SoundOutlined, ShareAltOutlined } from '@ant-design/icons';
+import { Button, message, Modal, Checkbox, Row, Col } from 'antd';
 import { api } from '../services/api';
-import { EMOTION_COLORS, EMOTION_LABELS } from '../types';
+import { EMOTION_LABELS } from '../types';
+
+const SOFT_EMOTION_BG: Record<string, string> = {
+  calm: '#c8ecd9', sleepy: '#cce5ff', excited: '#ffd6d8',
+  irritable: '#ffe4cc', tense: '#ead4f5',
+};
+const SOFT_EMOTION_TEXT: Record<string, string> = {
+  calm: '#5a9e72', sleepy: '#5a8fc4', excited: '#c97078',
+  irritable: '#c08850', tense: '#9a70b0',
+};
 
 interface StudentStatus {
   id: string;
@@ -40,39 +48,44 @@ export default function InstitutionPage() {
     return () => clearInterval(t);
   }, []);
 
-  const batchSoothe = async (classId: string) => {
-    try {
-      const res = await api.batchSoothe(classId) as { message: string };
-      message.success(res.message);
-    } catch (e: unknown) {
-      message.error(e instanceof Error ? e.message : '操作失败');
-    }
-  };
-
   const allStudents = classes.flatMap(c => c.students);
 
   return (
-    <div style={{ padding: 16 }}>
-      <h2 style={{ marginBottom: 16, fontWeight: 500 }}>🏫 班级看板</h2>
+    <div className="fade-in" style={{ padding: 16 }}>
+      <h2 className="page-title">🏫 班级看板</h2>
 
       {alerts.length > 0 && (
-        <Card className="card-soft" style={{ marginBottom: 12, borderColor: '#ff4d4f' }} size="small">
+        <div className="alert-card slide-up">
+          <div className="section-card-title" style={{ color: '#cf5050' }}>
+            <span className="alert-icon-blink">🚨</span> 异常提醒
+          </div>
           {alerts.slice(0, 3).map(a => (
-            <div key={a.id} style={{ color: '#ff4d4f', marginBottom: 4 }}>
-              <AlertOutlined /> {a.nickname}: {a.message}
+            <div key={a.id} className="alert-row">
+              <span>⚠️</span>
+              <span><strong>{a.nickname}</strong>：{a.message}</span>
             </div>
           ))}
-        </Card>
+        </div>
       )}
 
       {classes.map(cls => (
-        <Card key={cls.id} className="card-soft" title={cls.name} size="small" style={{ marginBottom: 16 }}
-          extra={
-            <div style={{ display: 'flex', gap: 8 }}>
-              <Button size="small" icon={<SoundOutlined />} onClick={() => batchSoothe(cls.id)}>批量安抚</Button>
-              <Button size="small" icon={<ShareAltOutlined />} onClick={() => setShareModal(true)}>分享周报</Button>
+        <div key={cls.id} className="section-card slide-up">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div className="section-card-title" style={{ margin: 0 }}>🌈 {cls.name}</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <Button size="small" className="action-btn-sm" onClick={async () => {
+                try {
+                  const res = await api.batchSoothe(cls.id) as { message: string };
+                  message.success(res.message);
+                } catch (e: unknown) {
+                  message.error(e instanceof Error ? e.message : '操作失败');
+                }
+              }}>🎵 批量安抚</Button>
+              <Button size="small" className="action-btn-sm"
+                style={{ background: 'linear-gradient(135deg, #87CEEB, #FFB6C1) !important' }}
+                onClick={() => setShareModal(true)}>💌 分享周报</Button>
             </div>
-          }>
+          </div>
           <Row gutter={[8, 8]}>
             {cls.students.map(s => {
               const emotion = s.monitoring?.emotion || 'calm';
@@ -80,30 +93,35 @@ export default function InstitutionPage() {
               const abnormal = hr > 110;
               return (
                 <Col span={8} key={s.id}>
-                  <div className="card-soft" style={{ padding: 10, textAlign: 'center', border: abnormal ? '2px solid #ff4d4f' : undefined }}>
-                    <Badge dot={abnormal} color="red">
-                      <div style={{ fontSize: 24 }}>{s.gender === '女' ? '👧' : '👦'}</div>
-                    </Badge>
-                    <div style={{ fontSize: 13, fontWeight: 500 }}>{s.nickname}</div>
-                    <Tag color={EMOTION_COLORS[emotion]} style={{ fontSize: 10 }}>{EMOTION_LABELS[emotion]}</Tag>
-                    <div style={{ fontSize: 11, color: abnormal ? '#ff4d4f' : '#999' }}>{hr}bpm</div>
+                  <div className={`student-card ${abnormal ? 'abnormal' : ''}`}>
+                    <div style={{ fontSize: 32 }}>{s.gender === '女' ? '👧' : '👦'}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>{s.nickname}</div>
+                    <span className="emotion-pill" style={{
+                      background: SOFT_EMOTION_BG[emotion],
+                      color: SOFT_EMOTION_TEXT[emotion],
+                    }}>{EMOTION_LABELS[emotion]}</span>
+                    <div style={{ fontSize: 11, color: abnormal ? '#ff7875' : '#bbb', marginTop: 4 }}>
+                      ❤️ {hr}bpm
+                    </div>
                   </div>
                 </Col>
               );
             })}
           </Row>
-        </Card>
+        </div>
       ))}
 
-      <Modal title="选择学生发送周报" open={shareModal} onCancel={() => setShareModal(false)}
+      <Modal title="💌 选择宝宝发送周报" open={shareModal} onCancel={() => setShareModal(false)}
         onOk={async () => {
           await api.shareReport(selectedIds);
-          message.success(`已向 ${selectedIds.length} 位家长发送周报`);
+          message.success(`已向 ${selectedIds.length} 位家长发送周报 💌`);
           setShareModal(false);
         }}>
         <Checkbox.Group value={selectedIds} onChange={v => setSelectedIds(v as string[])} style={{ width: '100%' }}>
           {allStudents.map(s => (
-            <div key={s.id} style={{ marginBottom: 8 }}><Checkbox value={s.id}>{s.nickname}</Checkbox></div>
+            <div key={s.id} style={{ marginBottom: 8 }}>
+              <Checkbox value={s.id}>{s.gender === '女' ? '👧' : '👦'} {s.nickname}</Checkbox>
+            </div>
           ))}
         </Checkbox.Group>
       </Modal>

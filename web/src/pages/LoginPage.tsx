@@ -91,7 +91,7 @@ export default function LoginPage() {
         )}
 
         <div style={{ textAlign: 'center', color: '#bbb', fontSize: 12, marginTop: 16 }}>
-          演示账号：13800000001/123456（家长）· 13800000002/123456（教师）
+          体验账号：13800000001 / 123456（家长）· 13800000002 / 123456（教师）
         </div>
       </Card>
     </div>

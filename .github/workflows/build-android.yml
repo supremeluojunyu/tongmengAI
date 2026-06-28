@@ -43,6 +43,7 @@ jobs:
       - name: Build Web
         run: |
           cd web
+          export VITE_SERVER_URL="${{ secrets.VITE_SERVER_URL || 'http://124.220.4.69:9050' }}"
           npm run build
           BUILD=$(date +%Y%m%d%H%M)
           VERSION=$(node -p "require('./package.json').version")

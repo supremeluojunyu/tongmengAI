@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { notification, Button } from 'antd';
+import { API_BASE, SERVER_URL } from '../config/env';
 
 const LOCAL_BUILD_KEY = 'tm_app_build';
 
@@ -7,7 +8,10 @@ const LOCAL_BUILD_KEY = 'tm_app_build';
 export function useUpdateCheck() {
   useEffect(() => {
     const localBuild = localStorage.getItem(LOCAL_BUILD_KEY) || '';
-    fetch('/api/update/check?build=' + encodeURIComponent(localBuild))
+    const checkUrl = SERVER_URL
+      ? `${SERVER_URL}/api/update/check?build=${encodeURIComponent(localBuild)}`
+      : `/api/update/check?build=${encodeURIComponent(localBuild)}`;
+    fetch(checkUrl)
       .then(r => r.json())
       .then(data => {
         if (data.hasUpdate && data.available) {

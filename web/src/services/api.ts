@@ -1,6 +1,5 @@
 import type { User, Child, Device, MonitoringData, SootheRecord, Article } from '../types';
-
-const API_BASE = '/api';
+import { API_BASE, wsUrl, SERVER_URL } from '../config/env';
 
 function getToken() {
   return localStorage.getItem('tm_token');
@@ -14,8 +13,19 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
-  const data = await res.json();
+  const url = `${API_BASE}${path}`;
+  const res = await fetch(url, { ...options, headers });
+  const text = await res.text();
+  let data: T & { error?: string };
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(
+      text.startsWith('<!')
+        ? `无法连接服务器，请检查网络或服务地址（当前: ${API_BASE}）`
+        : `服务器返回异常: ${text.slice(0, 80)}`
+    );
+  }
   if (!res.ok) throw new Error(data.error || '请求失败');
   return data;
 }
@@ -78,13 +88,22 @@ export const api = {
     request('/admin/articles', { method: 'POST', body: JSON.stringify(data) }),
   deleteArticle: (id: string) =>
     request(`/admin/articles/${id}`, { method: 'DELETE' }),
+  startSimulator: () =>
+    request<{ ok: boolean; running: boolean; message?: string }>('/simulator/start', {
+      method: 'POST', body: JSON.stringify({ intervalMs: 5000 }),
+    }),
+  stopSimulator: () =>
+    request<{ ok: boolean; running: boolean; message?: string }>('/simulator/stop', { method: 'POST' }),
+  getSimulatorStatus: () =>
+    request<{ running: boolean; tickCount: number; childCount: number; uptimeMs: number }>('/simulator/status'),
 };
 
 export function connectWebSocket(onMessage: (data: unknown) => void) {
-  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const ws = new WebSocket(`${protocol}//${location.host}/ws`);
+  const ws = new WebSocket(wsUrl());
   ws.onmessage = (e) => {
     try { onMessage(JSON.parse(e.data)); } catch { /* ignore */ }
   };
   return ws;
 }
+
+export { API_BASE, SERVER_URL };

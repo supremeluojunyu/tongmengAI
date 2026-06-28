@@ -32,7 +32,7 @@ export default function AdminDashboard() {
       </Row>
       <Card style={{ marginTop: 24 }} title="系统说明">
         <p>童梦AI 管理后台用于管理用户、设备、育儿内容及监控异常报警。</p>
-        <p>实时监测数据通过 WebSocket 推送，设备模拟器每 5 秒更新一次。</p>
+        <p>实时监测数据通过 WebSocket 推送，设备状态每 5 秒同步更新。</p>
       </Card>
     </div>
   );

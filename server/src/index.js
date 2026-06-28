@@ -13,7 +13,13 @@ import articlesRouter from './routes/articles.js';
 import institutionRouter from './routes/institution.js';
 import adminRouter from './routes/admin.js';
 import { registerDownloadRoutes } from './routes/download.js';
-import { startSimulator, subscribe } from './services/simulator.js';
+import {
+  startSimulator,
+  stopSimulator,
+  isSimulating,
+  getSimulatorStatus,
+  subscribe,
+} from './services/simulator.js';
 import { PORTS } from './config.js';
 import './db/seed.js';
 
@@ -32,6 +38,25 @@ app.get('/api/health', (_, res) => res.json({
   port: PORT,
   download: `/download`,
 }));
+
+// 监测数据流控制（内部接口）
+app.post('/api/simulator/start', (req, res) => {
+  const intervalMs = Number(req.body?.intervalMs) || 5000;
+  if (isSimulating()) {
+    return res.json({ ok: true, message: '监测服务已在运行', ...getSimulatorStatus() });
+  }
+  startSimulator(intervalMs);
+  res.json({ ok: true, message: '监测服务已开启', ...getSimulatorStatus() });
+});
+
+app.post('/api/simulator/stop', (_, res) => {
+  stopSimulator();
+  res.json({ ok: true, message: '监测服务已暂停', ...getSimulatorStatus() });
+});
+
+app.get('/api/simulator/status', (_, res) => {
+  res.json(getSimulatorStatus());
+});
 
 app.use('/api/auth', authRouter);
 app.use('/api/children', childrenRouter);
@@ -64,8 +89,6 @@ wss.on('connection', (ws) => {
   ws.send(JSON.stringify({ type: 'connected', message: '童梦AI 实时连接已建立' }));
   subscribe(ws);
 });
-
-startSimulator(5000);
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`童梦AI 服务运行于 http://0.0.0.0:${PORT}`);

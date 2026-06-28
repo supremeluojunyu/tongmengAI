@@ -1,17 +1,49 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Select, Card, Button, Badge, message, notification } from 'antd';
-import { SoundOutlined, AudioOutlined, BarChartOutlined, WifiOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { Select, Button, notification } from 'antd';
+import { SoundOutlined, AudioOutlined, BarChartOutlined } from '@ant-design/icons';
 import { api, connectWebSocket } from '../services/api';
 import { useAppStore } from '../stores/appStore';
-import type { MonitoringData, Child } from '../types';
-import { EMOTION_LABELS, EMOTION_COLORS } from '../types';
+import type { MonitoringData, Child, Device } from '../types';
+import { EMOTION_LABELS } from '../types';
+import AnimatedNumber from '../components/AnimatedNumber';
+
+const EMOTION_EMOJI: Record<string, string> = {
+  calm: '😌',
+  sleepy: '😴',
+  excited: '😤',
+  irritable: '😠',
+  tense: '😰',
+};
+
+const DEVICE_EMOJI: Record<string, string> = {
+  nirs: '🧠',
+  ppg: '💓',
+  exoskeleton: '🤱',
+};
+
+const LONG_PRESS_MS = 3000;
+const RING_RADIUS = 18;
+const RING_CIRC = 2 * Math.PI * RING_RADIUS;
+
+function batteryColor(pct: number) {
+  if (pct > 60) return 'linear-gradient(90deg, #a8e6cf, #52c41a)';
+  if (pct > 30) return 'linear-gradient(90deg, #ffd666, #faad14)';
+  return 'linear-gradient(90deg, #ffccc7, #ff7875)';
+}
 
 export default function HomePage() {
   const navigate = useNavigate();
   const { children, currentChild, setChildren, setCurrentChild } = useAppStore();
   const [monitoring, setMonitoring] = useState<MonitoringData | null>(null);
   const [soothing, setSoothing] = useState(false);
+  const [simRunning, setSimRunning] = useState(false);
+  const [pressProgress, setPressProgress] = useState(0);
+  const [isPressing, setIsPressing] = useState(false);
+  const [moonFlash, setMoonFlash] = useState(false);
+
+  const pressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pressStart = useRef(0);
 
   const loadChildren = useCallback(async () => {
     try {
@@ -30,6 +62,10 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => { loadChildren(); }, [loadChildren]);
+
+  useEffect(() => {
+    api.getSimulatorStatus().then(s => setSimRunning(s.running)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (currentChild) loadMonitoring(currentChild.id);
@@ -60,83 +96,190 @@ export default function HomePage() {
     return () => ws.close();
   }, [currentChild]);
 
+  const subtleFeedback = () => {
+    setMoonFlash(true);
+    setTimeout(() => setMoonFlash(false), 600);
+    if (navigator.vibrate) navigator.vibrate(30);
+  };
+
+  const toggleHiddenSim = async () => {
+    try {
+      if (simRunning) {
+        await api.stopSimulator();
+        setSimRunning(false);
+      } else {
+        await api.startSimulator();
+        setSimRunning(true);
+      }
+      subtleFeedback();
+    } catch { /* 静默失败，不暴露任何提示 */ }
+  };
+
+  const clearPress = () => {
+    if (pressTimer.current) clearInterval(pressTimer.current);
+    pressTimer.current = null;
+    setIsPressing(false);
+    setPressProgress(0);
+  };
+
+  const onPressStart = () => {
+    setIsPressing(true);
+    pressStart.current = Date.now();
+    pressTimer.current = setInterval(() => {
+      const elapsed = Date.now() - pressStart.current;
+      const pct = Math.min(100, (elapsed / LONG_PRESS_MS) * 100);
+      setPressProgress(pct);
+      if (elapsed >= LONG_PRESS_MS) {
+        clearPress();
+        toggleHiddenSim();
+      }
+    }, 50);
+  };
+
   const quickSoothe = async () => {
     if (!currentChild) return;
     setSoothing(true);
     try {
-      await api.startSoothe({ childId: currentChild.id, soundType: 'rain', lightBrightness: 40, lightColor: 'warm', durationMin: 30 });
-      message.success('已开始播放雨声白噪音');
-    } catch (e: unknown) {
-      message.error(e instanceof Error ? e.message : '启动失败');
-    }
+      await api.startSoothe({
+        childId: currentChild.id, soundType: 'rain',
+        lightBrightness: 40, lightColor: 'warm', durationMin: 30,
+      });
+    } catch { /* ignore */ }
+    finally { setSoothing(false); }
   };
 
   const emotion = monitoring?.emotion || 'calm';
-  const emotionColor = EMOTION_COLORS[emotion] || '#52c41a';
   const emotionLabel = monitoring?.emotionInfo?.label || EMOTION_LABELS[emotion] || '平静';
+  const emoji = EMOTION_EMOJI[emotion] || '😌';
+  const hr = monitoring?.heart_rate ?? '--';
+  const br = monitoring?.breath_rate ?? '--';
 
   return (
-    <div style={{ padding: '16px 16px 0' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <div style={{ fontSize: 13, color: '#999' }}>实时监测</div>
-          <Select
-            value={currentChild?.id}
-            onChange={(id) => setCurrentChild(children.find(c => c.id === id) || null)}
-            style={{ width: 140 }}
-            bordered={false}
-            options={children.map((c: Child) => ({ value: c.id, label: c.nickname }))}
-          />
-        </div>
-        <Badge status={monitoring ? 'success' : 'default'} text={monitoring ? '设备在线' : '等待数据'} />
-      </div>
-
-      <div className="emotion-gauge" style={{ background: `linear-gradient(135deg, ${emotionColor}22, ${emotionColor}44)`, border: `3px solid ${emotionColor}` }}>
-        <div style={{ fontSize: 28, fontWeight: 600, color: emotionColor }}>{emotionLabel}</div>
-        <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>{monitoring?.sleepStageLabel || '浅睡'}</div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, margin: '20px 0' }}>
-        <Card className="card-soft" size="small" styles={{ body: { padding: 16 } }}>
-          <div style={{ color: '#999', fontSize: 12 }}>❤️ 心率</div>
-          <div style={{ fontSize: 28, fontWeight: 600, color: (monitoring?.heart_rate ?? 0) > 110 ? '#ff4d4f' : '#2c3e50' }}>
-            {monitoring?.heart_rate || '--'} <span style={{ fontSize: 14 }}>bpm</span>
+    <div className="fade-in" style={{ padding: '16px 16px 0' }}>
+      {/* 头部：月亮长按隐蔽触发 */}
+      <div className="home-header">
+        <div className="home-title-area">
+          <div
+            className="moon-trigger"
+            onMouseDown={onPressStart}
+            onMouseUp={clearPress}
+            onMouseLeave={clearPress}
+            onTouchStart={onPressStart}
+            onTouchEnd={clearPress}
+            onTouchCancel={clearPress}
+            onContextMenu={e => e.preventDefault()}
+          >
+            <svg className={`long-press-ring ${isPressing ? 'active' : ''}`} width="44" height="44" viewBox="0 0 44 44">
+              <circle className="bg" cx="22" cy="22" r={RING_RADIUS} />
+              <circle
+                className="progress"
+                cx="22" cy="22" r={RING_RADIUS}
+                strokeDasharray={RING_CIRC}
+                strokeDashoffset={RING_CIRC - (RING_CIRC * pressProgress) / 100}
+              />
+            </svg>
+            <span className={`moon-icon ${moonFlash ? 'moon-flash' : ''}`}>🌙</span>
           </div>
-        </Card>
-        <Card className="card-soft" size="small" styles={{ body: { padding: 16 } }}>
-          <div style={{ color: '#999', fontSize: 12 }}>🫁 呼吸</div>
-          <div style={{ fontSize: 28, fontWeight: 600 }}>{monitoring?.breath_rate || '--'} <span style={{ fontSize: 14 }}>/min</span></div>
-        </Card>
-        <Card className="card-soft" size="small" styles={{ body: { padding: 16 } }}>
-          <div style={{ color: '#999', fontSize: 12 }}>😴 睡眠阶段</div>
-          <div style={{ fontSize: 18, fontWeight: 500 }}>{monitoring?.sleepStageLabel || '--'}</div>
-        </Card>
-        <Card className="card-soft" size="small" styles={{ body: { padding: 16 } }}>
-          <div style={{ color: '#999', fontSize: 12 }}><ThunderboltOutlined /> 外骨骼</div>
-          <div style={{ fontSize: 14 }}>{monitoring?.exoskeleton_mode || '横抱'} · {monitoring?.exoskeleton_battery || 0}%</div>
-        </Card>
+          <div>
+            <div className="home-title-text">实时监测</div>
+            <Select
+              value={currentChild?.id}
+              onChange={id => setCurrentChild(children.find(c => c.id === id) || null)}
+              style={{ width: 130, fontWeight: 600 }}
+              variant="borderless"
+              options={children.map((c: Child) => ({ value: c.id, label: c.nickname }))}
+            />
+          </div>
+        </div>
+        <div className="status-badge">
+          {monitoring ? <span className="online-dot" /> : <span className="offline-dot" />}
+          {monitoring ? '设备在线' : '等待数据'}
+        </div>
       </div>
 
+      {/* 月亮脸情绪仪表盘 */}
+      <div className={`moon-gauge breathe ${emotion} slide-up`}>
+        <div className="moon-gauge-emoji">{emoji}</div>
+        <div className="moon-gauge-label">{emotionLabel}</div>
+        <div className="moon-gauge-stage">{monitoring?.sleepStageLabel || '监测中'}</div>
+      </div>
+
+      {/* 心率 / 呼吸 */}
+      <div className="vital-grid slide-up">
+        <div className="vital-card">
+          <div className="vital-card-icon">❤️</div>
+          <div className={`vital-card-value ${typeof hr === 'number' ? 'heartbeat' : ''}`}
+            style={{ color: typeof hr === 'number' && hr > 110 ? '#ff7875' : undefined }}>
+            <AnimatedNumber value={hr} />
+            <span className="vital-card-unit">bpm</span>
+          </div>
+        </div>
+        <div className="vital-card">
+          <div className="vital-card-icon">🫁</div>
+          <div className="vital-card-value">
+            <AnimatedNumber value={br} />
+            <span className="vital-card-unit">/min</span>
+          </div>
+        </div>
+        <div className="vital-card">
+          <div className="vital-card-icon">😴</div>
+          <div style={{ fontSize: 18, fontWeight: 600, marginTop: 8 }}>
+            {monitoring?.sleepStageLabel || '--'}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>睡眠阶段</div>
+        </div>
+        <div className="vital-card">
+          <div className="vital-card-icon">🤱</div>
+          <div style={{ fontSize: 18, fontWeight: 600, marginTop: 8 }}>
+            {monitoring?.exoskeleton_mode === 'horizontal' ? '横抱'
+              : monitoring?.exoskeleton_mode === 'vertical' ? '竖抱' : '静置'}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>
+            外骨骼 · {monitoring?.exoskeleton_battery ?? 0}%
+          </div>
+        </div>
+      </div>
+
+      {/* 底部操作 */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-        <Button type="primary" icon={<SoundOutlined />} size="large" loading={soothing} onClick={quickSoothe}
-          style={{ flex: 1, height: 52, borderRadius: 26, background: 'linear-gradient(135deg, #7eb8da, #a8d8ea)', border: 'none' }}>
+        <Button
+          className="soothe-btn"
+          type="primary"
+          icon={<SoundOutlined style={{ fontSize: 20 }} />}
+          size="large"
+          loading={soothing}
+          onClick={quickSoothe}
+        >
           一键安抚
         </Button>
-        <Button icon={<AudioOutlined />} size="large" onClick={() => message.info('语音控制：说"开始安抚"或"查看报告"')}
-          style={{ width: 52, height: 52, borderRadius: 26 }} />
-        <Button icon={<BarChartOutlined />} size="large" onClick={() => navigate('/report')}
-          style={{ width: 52, height: 52, borderRadius: 26 }} />
+        <Button className="round-btn" icon={<AudioOutlined style={{ fontSize: 20 }} />} size="large" />
+        <Button className="round-btn" icon={<BarChartOutlined style={{ fontSize: 20 }} />} size="large"
+          onClick={() => navigate('/report')} />
       </div>
 
+      {/* 设备状态 */}
       {monitoring?.devices && monitoring.devices.length > 0 && (
-        <Card className="card-soft" title={<><WifiOutlined /> 设备状态</>} size="small">
-          {monitoring.devices.map(d => (
-            <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
-              <span>{d.name}</span>
-              <span style={{ color: d.status === 'online' ? '#52c41a' : '#999' }}>{d.battery}% · {d.status === 'online' ? '在线' : '离线'}</span>
+        <div className="card-soft slide-up" style={{ padding: 16, marginBottom: 16 }}>
+          <div className="device-card-title">📡 设备状态</div>
+          {monitoring.devices.map((d: Device) => (
+            <div key={d.id} className="device-row">
+              <span className="device-emoji">{DEVICE_EMOJI[d.type] || '📟'}</span>
+              <div className="device-info">
+                <div className="device-name">{d.name}</div>
+                <div className="device-battery-bar">
+                  <div className="device-battery-fill" style={{
+                    width: `${d.battery}%`,
+                    background: batteryColor(d.battery),
+                  }} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
+                {d.status === 'online' ? <span className="online-dot" /> : <span className="offline-dot" />}
+                {d.battery}%
+              </div>
             </div>
           ))}
-        </Card>
+        </div>
       )}
     </div>
   );
