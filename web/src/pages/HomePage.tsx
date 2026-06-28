@@ -44,6 +44,9 @@ export default function HomePage() {
 
   const pressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const pressStart = useRef(0);
+  const simRunningRef = useRef(false);
+  const togglingRef = useRef(false);
+  const pressActiveRef = useRef(false);
 
   const loadChildren = useCallback(async () => {
     try {
@@ -64,7 +67,25 @@ export default function HomePage() {
   useEffect(() => { loadChildren(); }, [loadChildren]);
 
   useEffect(() => {
-    api.getSimulatorStatus().then(s => setSimRunning(s.running)).catch(() => {});
+    simRunningRef.current = simRunning;
+  }, [simRunning]);
+
+  useEffect(() => {
+    const syncStatus = () => {
+      api.getSimulatorStatus()
+        .then(s => setSimRunning(s.running))
+        .catch(() => {});
+    };
+    syncStatus();
+    const timer = setInterval(syncStatus, 8000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') syncStatus();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, []);
 
   useEffect(() => {
@@ -96,33 +117,41 @@ export default function HomePage() {
     return () => ws.close();
   }, [currentChild]);
 
-  const subtleFeedback = () => {
+  const subtleFeedback = (stopped?: boolean) => {
     setMoonFlash(true);
-    setTimeout(() => setMoonFlash(false), 600);
-    if (navigator.vibrate) navigator.vibrate(30);
+    setTimeout(() => setMoonFlash(false), stopped ? 900 : 600);
+    if (navigator.vibrate) navigator.vibrate(stopped ? [30, 40, 30] : 30);
   };
 
   const toggleHiddenSim = async () => {
+    if (togglingRef.current) return;
+    togglingRef.current = true;
     try {
-      if (simRunning) {
-        await api.stopSimulator();
-        setSimRunning(false);
-      } else {
-        await api.startSimulator();
-        setSimRunning(true);
-      }
-      subtleFeedback();
+      const status = await api.getSimulatorStatus();
+      const res = status.running
+        ? await api.stopSimulator()
+        : await api.startSimulator();
+      setSimRunning(!!res.running);
+      simRunningRef.current = !!res.running;
+      subtleFeedback(!res.running);
     } catch { /* 静默失败，不暴露任何提示 */ }
+    finally {
+      togglingRef.current = false;
+    }
   };
 
   const clearPress = () => {
     if (pressTimer.current) clearInterval(pressTimer.current);
     pressTimer.current = null;
+    pressActiveRef.current = false;
     setIsPressing(false);
     setPressProgress(0);
   };
 
-  const onPressStart = () => {
+  const onPressStart = (e: React.PointerEvent) => {
+    if (pressActiveRef.current || e.button > 0) return;
+    e.preventDefault();
+    pressActiveRef.current = true;
     setIsPressing(true);
     pressStart.current = Date.now();
     pressTimer.current = setInterval(() => {
@@ -161,12 +190,10 @@ export default function HomePage() {
         <div className="home-title-area">
           <div
             className="moon-trigger"
-            onMouseDown={onPressStart}
-            onMouseUp={clearPress}
-            onMouseLeave={clearPress}
-            onTouchStart={onPressStart}
-            onTouchEnd={clearPress}
-            onTouchCancel={clearPress}
+            onPointerDown={onPressStart}
+            onPointerUp={clearPress}
+            onPointerLeave={clearPress}
+            onPointerCancel={clearPress}
             onContextMenu={e => e.preventDefault()}
           >
             <svg className={`long-press-ring ${isPressing ? 'active' : ''}`} width="44" height="44" viewBox="0 0 44 44">
